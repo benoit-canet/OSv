@@ -388,7 +388,7 @@ void application::new_program()
     }
 
     void *addr = reinterpret_cast<void *>(elf::program_base) + ((i + 1) << 33);
-    _program.reset(new elf::program(addr));
+    _program.reset(new elf::program(addr, true));
 }
 
 elf::program *application::program() {

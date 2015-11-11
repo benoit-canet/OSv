@@ -37,6 +37,10 @@ TRACEPOINT(trace_elf_lookup_addr, "%p", const void *);
 using namespace std;
 using namespace boost::range;
 
+// for namespace environment variables
+extern char **__environ;
+typedef int (*putenv_t)(char *string);
+
 namespace {
     typedef boost::format fmt;
 }
@@ -1024,7 +1028,7 @@ void create_main_program()
     s_program = new elf::program();
 }
 
-program::program(void* addr)
+program::program(void* addr, bool new_namespace)
     : _next_alloc(addr)
 {
     _core = make_shared<memory_image>(*this, (void*)ELF_IMAGE_START);
@@ -1060,6 +1064,10 @@ program::program(void* addr)
         _files[name] = _core;
     }
     _modules_rcu.assign(ml);
+    // load the per namespace custom variables library
+    if (new_namespace) {
+        init_namespace();
+    }
 }
 
 void program::set_search_path(std::initializer_list<std::string> path)
@@ -1096,7 +1104,7 @@ static std::string canonicalize(std::string p)
 // get_library() will run the init functions later.
 std::shared_ptr<elf::object>
 program::load_object(std::string name, std::vector<std::string> extra_path,
-        std::vector<std::shared_ptr<object>> &loaded_objects)
+        std::vector<std::shared_ptr<object>> &loaded_objects, bool ns)
 {
     fileref f;
     if (_files.count(name)) {
@@ -1144,8 +1152,15 @@ program::load_object(std::string name, std::vector<std::string> extra_path,
         auto old_modules = _modules_rcu.read_by_owner();
         std::unique_ptr<modules_list> new_modules (
                 new modules_list(*old_modules));
-        new_modules->objects.insert(
-                std::prev(new_modules->objects.end()), ef.get());
+        if (ns) {
+            // if we are loading the special namespace library put it at the
+            // back of the module list so it will be _before_ the kernel .so
+            // in the search path and it's symbol will prime.
+            new_modules->objects.push_back(ef.get());
+        } else {
+            new_modules->objects.insert(
+                    std::prev(new_modules->objects.end()), ef.get());
+        }
         new_modules->adds++;
         _modules_rcu.assign(new_modules.release());
         osv::rcu_dispose(old_modules);
@@ -1165,11 +1180,13 @@ program::load_object(std::string name, std::vector<std::string> extra_path,
 }
 
 std::shared_ptr<object>
-program::get_library(std::string name, std::vector<std::string> extra_path)
+program::get_library(std::string name,
+                     std::vector<std::string> extra_path,
+                     bool ns)
 {
     SCOPE_LOCK(_mutex);
     std::vector<std::shared_ptr<object>> loaded_objects;
-    auto ret = load_object(name, extra_path, loaded_objects);
+    auto ret = load_object(name, extra_path, loaded_objects, ns);
     if (ret) {
         ret->init_static_tls();
     }
@@ -1184,6 +1201,23 @@ program::get_library(std::string name, std::vector<std::string> extra_path)
         loaded_objects[i]->setprivate(false);
     }
     return ret;
+}
+
+void program::init_namespace()
+{
+    std::vector<std::string> empty;
+    auto lib = get_library("/libnamespaces.so", empty, true);
+
+    if (!__environ) {
+        return;
+    }
+
+    auto address = lookup("putenv").relocated_addr();
+    auto lib_putenv = reinterpret_cast<putenv_t>(address);
+
+    for (int i=0; __environ[i] ; i++) {
+        lib_putenv(__environ[i]);
+    }
 }
 
 void program::remove_object(object *ef)

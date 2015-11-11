@@ -494,7 +494,8 @@ class program {
 public:
     static const ulong core_module_index;
 
-    explicit program(void* base = reinterpret_cast<void*>(program_base));
+    explicit program(void* base = reinterpret_cast<void*>(program_base),
+                     bool new_namespace = false);
     /**
      * Load a shared library, and return an interface to it.
      *
@@ -525,7 +526,10 @@ public:
      *                        set_search_path().
      */
     std::shared_ptr<elf::object>
-    get_library(std::string lib, std::vector<std::string> extra_path = {});
+    get_library(std::string lib,
+                std::vector<std::string> extra_path = {},
+                bool bs = false);
+    void init_namespace();
 
     /**
      * Set the default search path for get_library().
@@ -567,7 +571,8 @@ private:
     void free_dtv(object* obj);
     std::shared_ptr<object> load_object(std::string name,
             std::vector<std::string> extra_path,
-            std::vector<std::shared_ptr<object>> &loaded_objects);
+            std::vector<std::shared_ptr<object>> &loaded_objects,
+            bool ns = false);
 private:
     mutex _mutex;
     void* _next_alloc;

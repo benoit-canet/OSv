@@ -1,4 +1,5 @@
 [manifest]
+/libnamespaces.so: libnamespaces.so
 /zpool.so: zpool.so
 /libzfs.so: libzfs.so
 /libuutil.so: libuutil.so
