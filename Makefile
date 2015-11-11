@@ -884,6 +884,7 @@ objects += core/libaio.o
 #include $(src)/libc/build.mk:
 libc =
 musl =
+namespace =
 
 ifeq ($(arch),x64)
 musl_arch = x86_64
@@ -944,6 +945,13 @@ libc += env/secure_getenv.o
 musl += env/putenv.o
 musl += env/setenv.o
 musl += env/unsetenv.o
+namespaces += env/__environ.o
+namespaces += env/clearenv.o
+namespaces += env/getenv.o
+namespaces += env/secure_getenv.o
+namespaces += env/putenv.o
+namespaces += env/setenv.o
+namespaces += env/unsetenv.o
 
 musl += ctype/__ctype_b_loc.o
 
@@ -1754,8 +1762,14 @@ $(out)/loader.elf: $(out)/arch/$(arch)/boot.o arch/$(arch)/loader.ld $(out)/load
 
 $(out)/bsd/%.o: COMMON += -DSMP -D'__FBSDID(__str__)=extern int __bogus__'
 
+namespaces_objects += $(addprefix $(out)/namespaces/, $(namespaces))
+
+$(out)/libnamespaces.so: $(namespaces_objects)
+	$(makedir)
+	 $(call quiet, $(CC) $(CFLAGS) -shared -o $(out)/libnamespaces.so $^, LINK libnamespaces.so)
+
 $(out)/bootfs.bin: scripts/mkbootfs.py bootfs.manifest.skel $(tools:%=$(out)/%) \
-		$(out)/zpool.so $(out)/zfs.so
+		$(out)/zpool.so $(out)/zfs.so $(out)/libnamespaces.so
 	$(call quiet, olddir=`pwd`; cd $(out); $$olddir/scripts/mkbootfs.py -o bootfs.bin -d bootfs.bin.d -m $$olddir/bootfs.manifest.skel \
 		-D jdkbase=$(jdkbase) -D gccbase=$(gccbase) -D \
 		glibcbase=$(glibcbase) -D miscbase=$(miscbase), MKBOOTFS $@)
@@ -1774,7 +1788,6 @@ $(out)/tools/cpiod/cpiod.so: $(out)/tools/cpiod/cpiod.o $(out)/tools/cpiod/cpio.
 $(out)/tools/libtools.so: $(out)/tools/route/route_info.o $(out)/tools/ifconfig/network_interface.o
 	$(makedir)
 	 $(call quiet, $(CC) $(CFLAGS) -shared -o $(out)/tools/libtools.so $^, LINK libtools.so)
-
 
 ################################################################################
 # The dependencies on header files are automatically generated only after the
