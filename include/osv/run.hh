@@ -132,6 +132,8 @@ std::shared_ptr<osv::application> run(std::string path,
  * \param[in] new_program if true a new elf::program will be started to create
  *                         a new namespace.
  *
+ * \param[in] env          an environment map that will overwrite the parent environment
+ *
  * @throws osv::launch_error When application could not be launched
  *
  * \return \c shared pointer to the application
@@ -139,7 +141,10 @@ std::shared_ptr<osv::application> run(std::string path,
 std::shared_ptr<osv::application> run(std::string path,
                                     std::vector<std::string> args,
                                     int* return_code,
-                                    bool new_program = false);
+                                    bool new_program = false,
+                                    const std::map<std::string, std::string>
+                                    &env =
+                                    std::map<std::string, std::string>());
 
 /**@}*/
 

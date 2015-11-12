@@ -5,9 +5,10 @@ namespace osv {
 std::shared_ptr<osv::application> run(std::string path,
                                  std::vector<std::string> args,
                                  int* return_code,
-                                 bool new_program)
+                                 bool new_program,
+                                 const std::map<std::string, std::string> &env)
 {
-    auto app = osv::application::run(path, args, new_program);
+    auto app = osv::application::run(path, args, new_program, env);
     app->join();
     if (return_code) {
         *return_code = app->get_return_code();

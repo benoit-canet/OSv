@@ -1,6 +1,8 @@
 #include <cassert>
 #include <iostream>
 #include <thread>
+#include <map>
+#include <string>
 
 #include <osv/run.hh>
 
@@ -48,11 +50,39 @@ void env_with_namespaces()
     assert(!value);
 }
 
+void test_overwrite_env()
+{
+    std::vector<std::string> args;
+    std::map<std::string, std::string> env;
+    std::shared_ptr<osv::application> app;
+    int ret;
+
+    env["SECOND"] = "MOUCHE";
+    env["THIRD"] = "COCCINELLE";
+
+    args.push_back("tests/payload-overwrite-env-namespace.so");
+
+    app = osv::run("/tests/payload-overwrite-env-namespace.so",
+                   args, &ret, true, env);
+    assert(!ret);
+}
+
+
+void overwrite_env_namespaces()
+{
+    setenv("FIRST", "GATEAU", 1);
+    setenv("SECOND", "CHAMEAU", 1);
+    std::thread t = std::thread(test_overwrite_env);
+    t.join();
+}
+
 int main(int argc, char **argv)
 {
     with_namespaces();
 
     env_with_namespaces();
+
+    overwrite_env_namespaces();
 
     return 0;
 }

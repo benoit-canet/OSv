@@ -122,9 +122,10 @@ shared_app_t application::run(const std::vector<std::string>& args)
 
 shared_app_t application::run(const std::string& command,
                               const std::vector<std::string>& args,
-                              bool new_program)
+                              bool new_program,
+                              const std::map<std::string, std::string> &env)
 {
-    auto app = std::make_shared<application>(command, args, new_program);
+    auto app = std::make_shared<application>(command, args, new_program, env);
     app->start();
     apps.push(app);
     return app;
@@ -136,7 +137,8 @@ void run(const std::vector<std::string>& args) {
 
 application::application(const std::string& command,
                          const std::vector<std::string>& args,
-                         bool new_program)
+                         bool new_program,
+                         const std::map<std::string, std::string> &env)
     : _args(args)
     , _command(command)
     , _termination_requested(false)
@@ -148,6 +150,7 @@ application::application(const std::string& command,
         if (new_program) {
             this->new_program();
             clone_osv_environ();
+            overwrite_environ(env);
             _lib = _program->get_library(_command);
         } else {
             // Do it in a separate branch because elf::get_program() would not
@@ -415,6 +418,22 @@ void application::clone_osv_environ()
         // putenv simply assign the char * we have to duplicate it.
         // FIXME: this will leak memory when the application is destroyed.
         putenv(strdup(environ[i]));
+    }
+}
+
+void application::overwrite_environ(const std::map<std::string, std::string> &env)
+{
+    auto setenv =
+        _environ->lookup<int (const char *, const char *, int)>("setenv");
+    for (auto &iter: env) {
+        // We do not need to strdup() since __environ contains string of the
+        // form KEY=VALUE which implies that musl will do a malloc and
+        // build the correct string in it.
+        // Note that we overwrite existing environment variables that
+        // where copied to the libenviron.so __environ variable by the
+        // application constructor.
+        // FIXME: This will leak memory at application exit.
+        setenv(iter.first.c_str(), iter.second.c_str(), 1);
     }
 }
 
