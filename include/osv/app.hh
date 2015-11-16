@@ -71,6 +71,7 @@ public:
      * Returns application of the current thread.
      */
     static shared_app_t get_current();
+    static application *get_raw_current();
 
     /**
      * Start a new application.

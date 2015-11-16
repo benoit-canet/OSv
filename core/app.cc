@@ -96,6 +96,15 @@ shared_app_t application::get_current()
     return runtime->app.get_shared();
 }
 
+application *application::get_raw_current()
+{
+    auto runtime = sched::thread::current()->app_raw_runtime();
+    if (!runtime) {
+        return nullptr;
+    }
+    return &runtime->app;
+}
+
 bool application::unsafe_stop_and_abandon_other_threads()
 {
     auto current = sched::thread::current();

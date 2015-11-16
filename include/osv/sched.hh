@@ -482,6 +482,9 @@ public:
     std::shared_ptr<osv::application_runtime> app_runtime() {
         return _app_runtime;
     }
+    osv::application_runtime *app_raw_runtime() {
+        return _app_runtime.get();
+    }
     bool migratable() const { return _migration_lock_counter == 0; }
     /**
      * Return thread's numeric id
