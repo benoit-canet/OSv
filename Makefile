@@ -137,7 +137,7 @@ java-targets := $(out)/java/jvm/java.so $(out)/java/jni/balloon.so $(out)/java/j
         $(out)/java/jni/stty.so $(out)/java/jni/tracepoint.so $(out)/java/jni/power.so $(out)/java/jni/monitor.so
 endif
 
-all: $(out)/loader.img $(java-targets)
+all: $(out)/unfsd $(out)/loader.img $(java-targets)
 	$(call very-quiet, ln -nsf $(notdir $(out)) $(outlink))
 	$(call very-quiet, ln -nsf $(notdir $(out)) $(outlink2))
 .PHONY: all
@@ -147,6 +147,13 @@ check:
 .PHONY: check
 
 libnfs-path = external/fs/libnfs/
+
+$(out)/unfsd:
+	$(call quiet, cd external/fs/unfsd) && \
+	$(call quiet, ./configure) && \
+	$(call quiet, make) && \
++	$(call quiet, cd ../../../) && \
++	$(call quiet, cp external/fs/unfsd/unfsd $(out)/unfsd)
 
 $(out)/libnfs.a:
 	cd $(libnfs-path) && \
@@ -1775,7 +1782,12 @@ boost-libs := $(boost-lib-dir)/libboost_program_options$(boost-mt).a \
 
 ifeq ($(nfs), true)
 	nfs-lib = $(out)/libnfs.a
+	nfs_o = nfs.o nfs_vfsops.o nfs_vnops.o
+else
+	nfs_o = nfs_null_vfsops.o
 endif
+
+nfs-objects = $(addprefix fs/nfs/, $(nfs_o))
 
 nfs-library: $(nfs-lib)
 .PHONY: nfs-library
@@ -1787,7 +1799,7 @@ nfs-library: $(nfs-lib)
 $(out)/dummy-shlib.so: $(out)/dummy-shlib.o
 	$(call quiet, $(CXX) -nodefaultlibs -shared $(gcc-sysroot) -o $@ $^, LINK $@)
 
-$(out)/loader.elf: $(out)/arch/$(arch)/boot.o arch/$(arch)/loader.ld $(out)/loader.o $(out)/runtime.o $(drivers:%=$(out)/%) $(objects:%=$(out)/%) $(out)/bootfs.bin $(out)/dummy-shlib.so $(nfs-lib)
+$(out)/loader.elf: $(out)/arch/$(arch)/boot.o arch/$(arch)/loader.ld $(out)/loader.o $(out)/runtime.o $(drivers:%=$(out)/%) $(objects:%=$(out)/%) $(out)/bootfs.bin $(out)/dummy-shlib.so $(nfs-objects:%=$(out)/%) $(nfs-lib) 
 	$(call quiet, $(LD) -o $@ --defsym=OSV_KERNEL_BASE=$(kernel_base) \
 		-Bdynamic --export-dynamic --eh-frame-hdr --enable-new-dtags \
 	    $(filter-out %.bin, $(^:%.ld=-T %.ld)) \
