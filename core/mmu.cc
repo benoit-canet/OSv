@@ -1660,13 +1660,38 @@ void file_vma::split(uintptr_t edge)
     vma_list.insert(*n);
 }
 
+#include <iostream>
 error file_vma::sync(uintptr_t start, uintptr_t end)
 {
     if (!has_flags(mmap_shared))
         return make_error(ENOMEM);
 
     try {
-        _file->sync(_offset + start - _range.start(), _offset + end - _range.start());
+        off_t my_start = _offset + start - _range.start();
+        off_t my_end = _offset + end - _range.start();
+        size_t my_size = end - start;
+        ssize_t my_ssize = end - start;
+
+        off_t file_size = _file->f_dentry->d_vnode->v_size;
+
+        if (my_start > file_size) {
+            my_start = file_size;
+        }
+
+        if (my_end > file_size) {
+            my_end = file_size;
+        }
+
+        off_t expected_size = my_start + my_ssize;
+        if (expected_size > file_size) {
+            off_t delta = expected_size - file_size;
+            my_size -= delta;
+            my_ssize -= delta;
+        }
+        iovec iovec {(void *)(_range.start()), my_size};
+        uio data {&iovec, 1, my_start, my_ssize, UIO_WRITE};
+        _file->write(&data, FOF_OFFSET);
+        _file->sync(my_start, my_end);
     } catch (error& err) {
         return err;
     }
