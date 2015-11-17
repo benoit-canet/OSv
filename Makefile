@@ -148,7 +148,13 @@ check:
 
 libnfs-path = $(shell pwd)/external/fs/libnfs/
 
-$(out)/libnfs.a:
+$(out)/unfsd:
+	$(call quiet, cd external/fs/unfs3-0.9.22/) && \
+	$(call quiet, ./configure) && \
+	$(call quiet, make) && \
+	$(call quiet, cd ../../../)
+
+$(out)/libnfs.a: $(out)/unfsd
 	cd $(libnfs-path) && \
 	$(call quiet, ./bootstrap) && \
 	$(call quiet, ./configure --enable-shared=no --enable-static=yes --enable-silent-rules) && \
@@ -1776,9 +1782,12 @@ boost-libs := $(boost-lib-dir)/libboost_program_options$(boost-mt).a \
 
 ifeq ($(nfs), true)
 	nfs-lib = $(out)/libnfs.a
+	nfs_o = nfs.o nfs_vfsops.o nfs_vnops.o
+else
+	nfs_o = nfs_null_vfsops.o
 endif
 
-nfs-objects += $(addprefix fs/nfs/, $(nfs))
+nfs-objects += $(addprefix fs/nfs/, $(nfs_o))
 
 nfs-library: $(nfs-lib)
 .PHONY: nfs-library
