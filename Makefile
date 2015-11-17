@@ -1785,7 +1785,12 @@ boost-libs := $(boost-lib-dir)/libboost_program_options$(boost-mt).a \
 
 ifeq ($(nfs), true)
 	nfs-lib = $(out)/libnfs.a
+	nfs_o = nfs.o nfs_vfsops.o nfs_vnops.o
+else
+	nfs_o = nfs_null_vfsops.o
 endif
+
+nfs-objects = $(addprefix fs/nfs/, $(nfs_o))
 
 nfs-library: $(nfs-lib)
 .PHONY: nfs-library
@@ -1797,7 +1802,7 @@ nfs-library: $(nfs-lib)
 $(out)/dummy-shlib.so: $(out)/dummy-shlib.o
 	$(call quiet, $(CXX) -nodefaultlibs -shared $(gcc-sysroot) -o $@ $^, LINK $@)
 
-$(out)/loader.elf: $(out)/arch/$(arch)/boot.o arch/$(arch)/loader.ld $(out)/loader.o $(out)/runtime.o $(drivers:%=$(out)/%) $(objects:%=$(out)/%) $(out)/bootfs.bin $(out)/dummy-shlib.so $(nfs-lib)
+$(out)/loader.elf: $(out)/arch/$(arch)/boot.o arch/$(arch)/loader.ld $(out)/loader.o $(out)/runtime.o $(drivers:%=$(out)/%) $(objects:%=$(out)/%) $(out)/bootfs.bin $(out)/dummy-shlib.so $(nfs-objects:%=$(out)/%) $(nfs-lib)
 	$(call quiet, $(LD) -o $@ --defsym=OSV_KERNEL_BASE=$(kernel_base) \
 		-Bdynamic --export-dynamic --eh-frame-hdr --enable-new-dtags \
 	    $(filter-out %.bin, $(^:%.ld=-T %.ld)) \
