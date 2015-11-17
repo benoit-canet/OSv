@@ -146,11 +146,24 @@ check:
 
 libnfs-path = $(shell pwd)/external/fs/libnfs/
 
-$(out)/libnfs.a:
+$(out)/ganesha.nfsd:
+	$(call quiet, cd external/fs/nfs-ganesha/src) && \
+	$(call quiet, git submodule update --init) && \
+	$(call quiet, cd ../../../..) && \
+	$(call quiet, rm -rf $(out)/ganesha-build) && \
+	$(call quiet, mkdir $(out)/ganesha-build) && \
+	$(call quiet, cd $(out)/ganesha-build) && \
+	$(call quiet, cmake ../../../external/fs/nfs-ganesha/src) && \
+	$(call quiet, make) && \
+	$(call quiet, cp -a ./MainNFSD/ganesha.nfsd ..) && \
+	$(call quiet, cd ../../../)
+
+$(out)/libnfs.a: $(out)/ganesha.nfsd
 	cd $(libnfs-path) && \
-	$(call quiet, $(libnfs-path)/bootstrap) && \
-	$(call quiet, $(libnfs-path)/configure --enable-shared=no --enable-static=yes --enable-silent-rules) && \
-	$(call quiet, make -f $(libnfs-path)/Makefile)
+	$(call quiet, ./bootstrap) && \
+	$(call quiet, ./configure --enable-shared=no --enable-static=yes --enable-silent-rules) && \
+	$(call quiet, make) && \
+	$(call quiet, cd ../../../) && \
 	$(call quiet, cp -a $(libnfs-path)/lib/.libs/libnfs.a $(out)/libnfs.a)
 
 clean-libnfs:
@@ -1774,7 +1787,12 @@ boost-libs := $(boost-lib-dir)/libboost_program_options$(boost-mt).a \
 nfs-lib =
 ifeq ($(NFS), true)
 	nfs-lib += $(out)/libnfs.a
+	nfs = nfs_vfsops.o
+else
+	nfs = nfs_null_vfsops.o
 endif
+
+nfs-objects += $(addprefix fs/nfs/, $(nfs))
 
 nfs-library: $(nfs-lib)
 
@@ -1785,7 +1803,7 @@ nfs-library: $(nfs-lib)
 $(out)/dummy-shlib.so: $(out)/dummy-shlib.o
 	$(call quiet, $(CXX) -nodefaultlibs -shared $(gcc-sysroot) -o $@ $^, LINK $@)
 
-$(out)/loader.elf: $(out)/arch/$(arch)/boot.o arch/$(arch)/loader.ld $(out)/loader.o $(out)/runtime.o $(drivers:%=$(out)/%) $(objects:%=$(out)/%) $(out)/bootfs.bin $(out)/dummy-shlib.so $(nfs-lib)
+$(out)/loader.elf: $(out)/arch/$(arch)/boot.o arch/$(arch)/loader.ld $(out)/loader.o $(out)/runtime.o $(drivers:%=$(out)/%) $(objects:%=$(out)/%) $(nfs-objects:%=$(out)/%) $(out)/bootfs.bin $(out)/dummy-shlib.so $(nfs-lib)
 	$(call quiet, $(LD) -o $@ --defsym=OSV_KERNEL_BASE=$(kernel_base) \
 		-Bdynamic --export-dynamic --eh-frame-hdr --enable-new-dtags \
 	    $(filter-out %.bin, $(^:%.ld=-T %.ld)) \
