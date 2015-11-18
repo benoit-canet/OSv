@@ -148,6 +148,16 @@ check:
 
 libnfs-path = external/fs/libnfs/
 
+external/fs/unfsd.bin:
+	$(call quiet, cd external/fs/unfsd) && \
+	$(call quiet, ./configure) && \
+	$(call quiet, make) && \
+	$(call quiet, cp unfsd ../unfsd.bin) && \
+	$(call quiet, cd ../../../)
+
+nfs-server: external/fs/unfsd.bin
+.PHONY: nfs-server
+
 $(out)/libnfs.a:
 	cd $(libnfs-path) && \
 	$(call quiet, ./bootstrap) && \
