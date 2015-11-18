@@ -150,9 +150,10 @@ libnfs-path = $(shell pwd)/external/fs/libnfs/
 
 $(out)/libnfs.a:
 	cd $(libnfs-path) && \
-	$(call quiet, $(libnfs-path)/bootstrap) && \
-	$(call quiet, $(libnfs-path)/configure --enable-shared=no --enable-static=yes --enable-silent-rules) && \
-	$(call quiet, make -f $(libnfs-path)/Makefile)
+	$(call quiet, ./bootstrap) && \
+	$(call quiet, ./configure --enable-shared=no --enable-static=yes --enable-silent-rules) && \
+	$(call quiet, make) && \
+	$(call quiet, cd ../../../) && \
 	$(call quiet, cp -a $(libnfs-path)/lib/.libs/libnfs.a $(out)/libnfs.a)
 
 clean-libnfs:
@@ -1773,10 +1774,11 @@ endif
 boost-libs := $(boost-lib-dir)/libboost_program_options$(boost-mt).a \
               $(boost-lib-dir)/libboost_system$(boost-mt).a
 
-nfs-lib =
 ifeq ($(nfs), true)
-	nfs-lib += $(out)/libnfs.a
+	nfs-lib = $(out)/libnfs.a
 endif
+
+nfs-objects += $(addprefix fs/nfs/, $(nfs))
 
 nfs-library: $(nfs-lib)
 .PHONY: nfs-library
@@ -1788,14 +1790,13 @@ nfs-library: $(nfs-lib)
 $(out)/dummy-shlib.so: $(out)/dummy-shlib.o
 	$(call quiet, $(CXX) -nodefaultlibs -shared $(gcc-sysroot) -o $@ $^, LINK $@)
 
-$(out)/loader.elf: $(out)/arch/$(arch)/boot.o arch/$(arch)/loader.ld $(out)/loader.o $(out)/runtime.o $(drivers:%=$(out)/%) $(objects:%=$(out)/%) $(out)/bootfs.bin $(out)/dummy-shlib.so $(nfs-lib)
+$(out)/loader.elf: $(out)/arch/$(arch)/boot.o arch/$(arch)/loader.ld $(out)/loader.o $(out)/runtime.o $(drivers:%=$(out)/%) $(objects:%=$(out)/%) $(nfs-objects:%=$(out)/%) $(out)/bootfs.bin $(out)/dummy-shlib.so $(nfs-lib)
 	$(call quiet, $(LD) -o $@ --defsym=OSV_KERNEL_BASE=$(kernel_base) \
 		-Bdynamic --export-dynamic --eh-frame-hdr --enable-new-dtags \
 	    $(filter-out %.bin, $(^:%.ld=-T %.ld)) \
 	    --whole-archive \
 	      $(libstdc++.a) $(libgcc.a) $(libgcc_eh.a) \
 	      $(boost-libs) \
-	      $(nfs-lib) \
 	    --no-whole-archive, \
 		LINK loader.elf)
 	@# Build libosv.so matching this loader.elf. This is not a separate
