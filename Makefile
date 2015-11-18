@@ -152,8 +152,8 @@ $(out)/libnfs.a:
 	cd $(libnfs-path) && \
 	$(call quiet, ./bootstrap) && \
 	$(call quiet, ./configure --enable-shared=no --enable-static=yes --enable-silent-rules) && \
-	$(call quiet, make)
-	$(call quiet, cp -a $(libnfs-path)/lib/.libs/libnfs.a $(out)/libnfs.a)
+	$(call quiet, make) && \
+	$(call quiet, cp -a ./lib/.libs/libnfs.a ../../../$(out)/libnfs.a)
 
 clean-libnfs:
 	if [ -f $(out)/libnfs.a ] ; then \
@@ -1777,6 +1777,9 @@ ifeq ($(nfs), true)
 	nfs-lib = $(out)/libnfs.a
 endif
 
+nfs-library: $(nfs-lib)
+.PHONY: nfs-library
+
 # ld has a known bug (https://sourceware.org/bugzilla/show_bug.cgi?id=6468)
 # where if the executable doesn't use shared libraries, its .dynamic section
 # is dropped, even when we use the "--export-dynamic" (which is silently
@@ -1791,7 +1794,6 @@ $(out)/loader.elf: $(out)/arch/$(arch)/boot.o arch/$(arch)/loader.ld $(out)/load
 	    --whole-archive \
 	      $(libstdc++.a) $(libgcc.a) $(libgcc_eh.a) \
 	      $(boost-libs) \
-	      $(nfs-lib) \
 	    --no-whole-archive, \
 		LINK loader.elf)
 	@# Build libosv.so matching this loader.elf. This is not a separate

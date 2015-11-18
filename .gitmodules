@@ -51,3 +51,6 @@
 [submodule "external/fs/libnfs"]
 	path = external/fs/libnfs
 	url = https://github.com/sahlberg/libnfs.git
+[submodule "external/fs/unfsd"]
+	path = external/fs/unfsd
+	url = https://github.com/benoit-canet/unfsd.git
