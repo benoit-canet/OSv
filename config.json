@@ -8,6 +8,10 @@
             "type": "direct-dir",
             "path": "${OSV_BASE}/mgmt/"
         },
+        "nfs-tests": {
+            "type": "direct-dir",
+            "path": "${OSV_BASE}/modules/nfs-tests/"
+        },
     "repositories": [
         "${OSV_BASE}/apps",
         "${OSV_BASE}/modules"
