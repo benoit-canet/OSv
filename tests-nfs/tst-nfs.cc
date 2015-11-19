@@ -2,6 +2,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/mount.h>
+#include <fcntl.h>
 
 #include <string>
 
@@ -58,6 +59,33 @@ static void test_umount(std::string &mount_point)
     assert(!ret);
 }
 
+static void test_mkdir(std::string mount_point, std::string dir)
+{
+    std::string path = mount_point + "/" + dir;
+    int ret = mkdir(path.c_str(), 0755);
+    assert(!ret);
+}
+
+static void test_rmdir(std::string mount_point, std::string dir,
+                       int result, int err_no)
+{
+    std::string path = mount_point + "/" + dir;
+    int ret = rmdir(path.c_str());
+    assert(ret == result);
+    if (ret) {
+        assert(err_no = errno);
+    }
+}
+
+static void test_creat_and_close(std::string mount_point, std::string path)
+{
+    std::string full_path = mount_point + "/" + path;
+    int fd = creat(full_path.c_str(), 0500);
+    assert(fd != -1);
+    int ret = close(fd);
+    assert(!ret);
+}
+
 int main(int argc, char **argv)
 {
     po::options_description desc("Allowed options");
@@ -99,6 +127,19 @@ int main(int argc, char **argv)
     // Testing mount/umount
     test_mount(server, share, mount_point);
     test_umount(mount_point);
+
+    // Testing mkdir and rmdir
+    test_mount(server, share, mount_point);
+    // Test to rmdir something not existing
+    test_rmdir(mount_point, "bar", -1, ENOENT);
+    // mkdir followed by rmdir
+    test_mkdir(mount_point, "foo");
+    test_rmdir(mount_point, "foo", 0, 0);
+    test_umount(mount_point);
+
+    test_mkdir(mount_point, "blub");
+    // Testing creat and close
+    test_creat_and_close(mount_point, "zorglub");
 
     return 0;
 }
