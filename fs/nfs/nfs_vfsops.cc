@@ -18,7 +18,7 @@
 #include <string>
 #include <memory>
 
-#include "../../external/fs/libnfs/include/nfsc/libnfs.h"
+#include "nfs.hh"
 
 extern struct vnops nfs_vnops;
 
@@ -41,67 +41,48 @@ struct vfsops nfs_vfsops = {
     &nfs_vnops,        /* vnops */
 };
 
-static void nfs_mount_error(struct nfs_context *nfs)
-{
-    debug(std::string("nfs_mount: ") + nfs_get_error(nfs) + "\n");
-    nfs_destroy_context(nfs);
-}
-
-static struct nfs_context *get_nfs_context(struct mount *mp)
-{
-    return static_cast<struct nfs_context *>(mp->m_root->d_vnode->v_data);
-}
-
 /*
  * Mount a file system.
  */
 static int nfs_op_mount(struct mount *mp, const char *dev, int flags,
                         const void *data)
 {
-    struct nfs_context *nfs;
-    int ret;
-
     assert(mp);
 
     debug("nfs_mount: " + std::string(dev) + "\n");
 
-    /* Create the NFS context */
-    nfs = nfs_init_context();
-    if (!nfs) {
-        debug("nfs_mount: failed to create NFS context\n");
-        return ENOMEM;
+    int err_no;
+    auto ctx = create_mount_context(mp->m_special, err_no);
+    if (!ctx) {
+        return err_no
     }
 
-    // parse the url while taking care of freeing it when needed
-    std::unique_ptr<struct nfs_url, void (*)(struct nfs_url *url)>
-               url(nfs_parse_url_dir(nfs, mp->m_special), nfs_destroy_url);
-    if (!url) {
-        nfs_mount_error(nfs);
-        return EINVAL;
-    }
-
-    // Do the mount
-    ret = nfs_mount(nfs, url->server, url->path);
+    ret = nfs_mount(nfs, ctx->url->server, ctx->url->path);
     if (ret) {
-        nfs_mount_error(nfs);
+        delete ctx;
         return -ret;
     }
 
     // save the NFS context into the mount point
-    mp->m_root->d_vnode->v_data = nfs;
+    mp->m_root->d_vnode->v_data = ctx;
+
     return 0;
 }
 
 /*
  * Unmount a file system.
  *
+ * Note: There is no nfs_unmount in nfslib.
+ *
  */
 static int nfs_op_unmount(struct mount *mp, int flags)
 {
     assert(mp);
-    auto nfs = get_nfs_context(mp);
-    nfs_destroy_context(nfs);
+
+    delete get_mount_context(mp);
+
     mp->m_root->d_vnode->v_data = nullptr;
+
     return 0;
 }
 

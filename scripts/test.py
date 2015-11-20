@@ -99,7 +99,7 @@ def run_tests():
 
     if cmdargs.nfs:
         (conf_path, export_dir) = make_export_and_conf()
-        proc = subprocess.Popen([
+        proc = subprocess.Popen([ "sudo",
                                  os.path.join(os.getcwd(),
                                     "./external/fs/unfs3-0.9.22/unfsd"),
                                  "-t",
