@@ -4,12 +4,15 @@
 #include <sys/mount.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <time.h>
 
 #include <iostream>
 #include <fstream>
 #include <string>
 
 #include <boost/program_options.hpp>
+
+#include <osv/run.hh>
 
 namespace po = boost::program_options;
 
@@ -178,7 +181,7 @@ void test_write_read(std::string mount_point, std::string path)
     std::ifstream g(full_path);
     assert(g);
     std::string result((std::istreambuf_iterator<char>(g)),
-                 std::istreambuf_iterator<char>());
+                       std::istreambuf_iterator<char>());
     g.close();
 
     assert(result == msg);
@@ -220,6 +223,22 @@ void test_readdir(std::string mount_point, std::string path)
 
     // close the directory
     ret = closedir(dir);
+    assert(!ret);
+}
+
+void test_fsx(std::string mount_point, std::string path)
+{
+    std::string full_path = mount_point + "/" + path;
+    std::vector<std::string> args;
+
+    args.push_back("tests-nfs/fsx-linux.so");
+    args.push_back("-d");
+    args.push_back("-N");
+    args.push_back("10000");
+    args.push_back(full_path);
+
+    int ret = 0;
+    auto app = osv::run("/tests-nfs/fsx-linux.so", args, &ret, true);
     assert(!ret);
 }
 
@@ -289,6 +308,8 @@ int main(int argc, char **argv)
     test_write_read(mount_point, "tintin");
 
     test_readdir(mount_point, "castafiore");
+
+    test_fsx(mount_point, "sanzo");
 
     test_umount(mount_point);
     return 0;

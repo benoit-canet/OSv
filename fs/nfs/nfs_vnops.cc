@@ -181,6 +181,7 @@ static int nfs_write(struct vnode *vp, struct uio *uio, int ioflag)
         uio->uio_offset = vp->v_size;
         // NFS does not support happening to a file so let's truncate ourselve
         ret = nfs_ftruncate(nfs, handle, vp->v_size + uio->uio_resid);
+        vp->v_size += uio->uio_resid;
     }
 
     if (ret) {
