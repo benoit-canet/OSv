@@ -83,7 +83,7 @@ tests := tst-pthread.so tst-ramdisk.so tst-vblk.so tst-bsd-evh.so \
 	tst-namespace.so tst-without-namespace.so payload-env.so \
 	payload-merge-env.so testrunner.so
 
-tests-nfs := tst-nfs.so
+tests-nfs := tst-nfs.so fsx-linux.so
 
 #	libstatic-thread-variable.so tst-static-thread-variable.so \
 
