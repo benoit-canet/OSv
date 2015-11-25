@@ -952,7 +952,7 @@ static error sync(const void* addr, size_t length, int flags)
 
 class uninitialized_anonymous_page_provider : public page_allocator {
 private:
-    virtual void* fill(void* addr, uint64_t offset, uintptr_t size) {
+    virtual void* fill(void* addr, uint64_t offset, uintptr_t size, bool write) {
         return addr;
     }
     template<int N>
@@ -972,11 +972,11 @@ private:
     }
 public:
     virtual bool map(uintptr_t offset, hw_ptep<0> ptep, pt_element<0> pte, bool write) override {
-        return set_pte(fill(memory::alloc_page(), offset, page_size), ptep, pte);
+        return set_pte(fill(memory::alloc_page(), offset, page_size, write), ptep, pte);
     }
     virtual bool map(uintptr_t offset, hw_ptep<1> ptep, pt_element<1> pte, bool write) override {
         size_t size = pt_level_traits<1>::size::value;
-        return set_pte(fill(memory::alloc_huge_page(size), offset, size), ptep, pte);
+        return set_pte(fill(memory::alloc_huge_page(size), offset, size, write), ptep, pte);
     }
     virtual bool unmap(void *addr, uintptr_t offset, hw_ptep<0> ptep) override {
         clear_pte(ptep);
@@ -990,7 +990,7 @@ public:
 
 class initialized_anonymous_page_provider : public uninitialized_anonymous_page_provider {
 private:
-    virtual void* fill(void* addr, uint64_t offset, uintptr_t size) override {
+    virtual void* fill(void* addr, uint64_t offset, uintptr_t size, bool writte) override {
         if (addr) {
             memset(addr, 0, size);
         }
@@ -998,20 +998,34 @@ private:
     }
 };
 
+static bool is_file_read_only(file *f)
+{
+    return !(f->f_flags &FWRITE);
+}
+
+
+#include <iostream>
+
 class map_file_page_read : public uninitialized_anonymous_page_provider {
 private:
     file *_file;
     f_offset foffset;
 
-    virtual void* fill(void* addr, uint64_t offset, uintptr_t size) override {
+    virtual void* fill(void* addr, uint64_t offset, uintptr_t size, bool write) override {
         if (addr) {
             iovec iovec {addr, size};
-            uio data {&iovec, 1, off_t(foffset + offset), ssize_t(size), UIO_READ};
-            _file->read(&data, FOF_OFFSET);
-            /* zero buffer tail on a short read */
-            if (data.uio_resid) {
-                size_t tail = std::min(size, size_t(data.uio_resid));
-                memset((char*)addr + size - tail, 0, tail);
+            if (write && !is_file_read_only(_file)) {
+                uio data {&iovec, 1, off_t(foffset + offset), ssize_t(size), UIO_WRITE};
+                _file->write(&data, FOF_OFFSET);
+                std::cout << "blub" << addr << " " << offset << " " << size << std::endl;
+            } else {
+                uio data {&iovec, 1, off_t(foffset + offset), ssize_t(size), UIO_READ};
+                _file->read(&data, FOF_OFFSET);
+                /* zero buffer tail on a short read */
+                if (data.uio_resid) {
+                    size_t tail = std::min(size, size_t(data.uio_resid));
+                    memset((char*)addr + size - tail, 0, tail);
+                }
             }
         }
         return addr;

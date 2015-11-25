@@ -26,6 +26,7 @@
 #include <osv/stubbing.hh>
 #include <sys/utsname.h>
 #include <osv/demangle.hh>
+#include <osv/fcntl.h>
 
 #include "arch.hh"
 
@@ -1113,6 +1114,7 @@ program::load_object(std::string name, std::vector<std::string> extra_path,
             auto dname = canonicalize(dir + "/" + name);
             f = fileref_from_fname(dname);
             if (f) {
+                f->f_flags &= ~FWRITE;
                 name = dname;
                 break;
             }
@@ -1123,6 +1125,7 @@ program::load_object(std::string name, std::vector<std::string> extra_path,
         }
         name = canonicalize(name);
         f = fileref_from_fname(name);
+        f->f_flags &= ~FWRITE;
     }
 
     if (_files.count(name)) {
