@@ -1660,38 +1660,98 @@ void file_vma::split(uintptr_t edge)
     vma_list.insert(*n);
 }
 
+struct check_and_clear_dirty : public virt_pte_visitor {
+    bool _result = false;
+    void pte(pt_element<0> pte) override {
+        _result = pte.dirty();// && pte.writable();
+        pte.set_dirty(false);
+    }
+    void pte(pt_element<1> pte) override {
+        _result = pte.dirty(); // && pte.writable();
+        pte.set_dirty(false);
+    }
+};
+
+
+void file_vma::do_write(uintptr_t start, size_t buf_size,
+                        off_t offset, ssize_t size)
+{
+    iovec iovec {(void *)start, buf_size};
+    uio data {&iovec, 1, offset, size, UIO_WRITE};
+    _file->write(&data, FOF_OFFSET);
+}
+
+void file_vma::write_dirty(uintptr_t start, uintptr_t end, off_t offset,
+                           size_t write_size)
+{
+    size_t left = write_size;
+    size_t scan_offset = 0;
+
+    // We will scan page after page looking if they are dirty
+    while (left >= mmu::page_size) {
+        struct check_and_clear_dirty visitor;
+        virt_visit_pte_rcu(start + scan_offset, visitor);
+
+        // At the first non dirty page we issue a write with the previous
+        // dirty pages
+        if (!visitor._result) {
+            if (scan_offset) {
+                // write until the non dirty page
+                do_write(_range.start(), write_size, offset, scan_offset);
+            }
+            // from now skip all the previous page including this one
+            start += scan_offset + mmu::page_size;
+            offset += scan_offset + mmu::page_size;
+            scan_offset = 0;
+        } else {
+            // else keep scanning
+            scan_offset += mmu::page_size;
+            // Bound so we are sure we do not accidentally extend the file
+            scan_offset = std::min(scan_offset, write_size);
+        }
+
+        left -= mmu::page_size;
+    }
+
+    if (!scan_offset) {
+        return;
+    }
+
+    do_write(_range.start(), write_size, offset, scan_offset);
+}
+
 #include <iostream>
+
 error file_vma::sync(uintptr_t start, uintptr_t end)
 {
     if (!has_flags(mmap_shared))
         return make_error(ENOMEM);
 
     try {
-        off_t my_start = _offset + start - _range.start();
-        off_t my_end = _offset + end - _range.start();
-        size_t my_size = end - start;
-        ssize_t my_ssize = end - start;
-
         off_t file_size = _file->f_dentry->d_vnode->v_size;
+        off_t offset = _offset + start - _range.start();
+        size_t write_size = end - start;
 
-        if (my_start > file_size) {
-            my_start = file_size;
+        // clamp offset because we do not want to write past EOF with mmap()
+        offset = std::min(offset, file_size);
+
+        // Same idea here 
+        ssize_t unbounded_size = end - _range.start();
+        if (unbounded_size > file_size) {
+            std::cout << "blarg" << std::endl;
+            off_t delta = unbounded_size - file_size;
+            write_size -= delta;
         }
 
-        if (my_end > file_size) {
-            my_end = file_size;
+        offset = std::min(file_size, offset);
+eck_cow
+        // If there is nothing to write return
+        if (write_size <= 0) {
+            return make_error(EINVAL);;
         }
 
-        off_t expected_size = my_start + my_ssize;
-        if (expected_size > file_size) {
-            off_t delta = expected_size - file_size;
-            my_size -= delta;
-            my_ssize -= delta;
-        }
-        iovec iovec {(void *)(_range.start()), my_size};
-        uio data {&iovec, 1, my_start, my_ssize, UIO_WRITE};
-        _file->write(&data, FOF_OFFSET);
-        _file->sync(my_start, my_end);
+        write_dirty(start, end, offset, write_size);
+        _file->sync(offset, offset);
     } catch (error& err) {
         return err;
     }

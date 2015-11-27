@@ -234,7 +234,7 @@ void test_fsx(std::string mount_point, std::string path)
     args.push_back("tests-nfs/fsx-linux.so");
     args.push_back("-d");
     args.push_back("-N");
-    args.push_back("100");
+    args.push_back("1000");
     args.push_back(full_path);
 
     int ret = 0;
