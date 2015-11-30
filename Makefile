@@ -152,8 +152,8 @@ $(out)/unfsd:
 	$(call quiet, cd external/fs/unfsd) && \
 	$(call quiet, ./configure) && \
 	$(call quiet, make) && \
-+	$(call quiet, cd ../../../) && \
-+	$(call quiet, cp external/fs/unfsd/unfsd $(out)/unfsd)
+	$(call quiet, cd ../../../) && \
+	$(call quiet, cp external/fs/unfsd/unfsd $(out)/unfsd)
 
 $(out)/libnfs.a:
 	cd $(libnfs-path) && \
