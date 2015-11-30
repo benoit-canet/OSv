@@ -94,6 +94,9 @@ public:
     fileref file() const { return _file; }
     f_offset offset() const { return _offset; }
 private:
+    void do_write(uintptr_t start, size_t buf_size, off_t offset, ssize_t size);
+    void write_dirty(uintptr_t start, uintptr_t end, off_t offset,
+                     size_t write_size);
     f_offset offset(uintptr_t addr);
     fileref _file;
     f_offset _offset;
