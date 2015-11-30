@@ -148,13 +148,14 @@ check:
 
 libnfs-path = $(shell pwd)/external/fs/libnfs/
 
-$(out)/:
+$(out)/unfsd:
 	$(call quiet, cd external/fs/unfsd) && \
 	$(call quiet, ./configure) && \
 	$(call quiet, make) && \
-	$(call quiet, cd ../../../)
+	$(call quiet, cd ../../../) && \
+	$(call quiet, cp external/fs/unfsd/unfsd $(out)/unfsd)
 
-$(out)/libnfs.a: $(out)/
+$(out)/libnfs.a: $(out)/unfsd
 	cd $(libnfs-path) && \
 	$(call quiet, ./bootstrap) && \
 	$(call quiet, ./configure --enable-shared=no --enable-static=yes --enable-silent-rules) && \

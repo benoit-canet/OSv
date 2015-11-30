@@ -1,6 +1,8 @@
 #!/usr/bin/env python
+import atexit
 import subprocess
 import argparse
+import tempfile
 import glob
 import time
 import sys
@@ -73,10 +75,30 @@ def pluralize(word, count):
         return word
     return word + 's'
 
+def make_export_and_conf():
+    export_dir = tempfile.mkdtemp(prefix='share')
+    os.chmod(export_dir, 0777)
+    (conf_fd, conf_path) = tempfile.mkstemp(prefix='export')
+    conf = os.fdopen(conf_fd, "w")
+    conf.write("%s 127.0.0.1(insecure,rw)\n" % export_dir)
+    conf.flush()
+    conf.close()
+    return (conf_path, export_dir)
+
+proc = None
+
+def kill_unfsd():
+    global proc
+    subprocess.call(["sudo", "kill", "-9", str(proc.pid)])
+    proc.wait()
+
 def run_tests():
+    global proc
     start = time.time()
 
-    if cmdargs.name:
+    if cmdargs.nfs:
+        pass
+    elif cmdargs.name:
         tests_to_run = list((t for t in tests if re.match('^' + cmdargs.name + '$', t.name)))
         if not tests_to_run:
             print('No test matches: ' + cmdargs.name)
@@ -84,7 +106,34 @@ def run_tests():
     else:
         tests_to_run = tests
 
-    if cmdargs.single:
+    if cmdargs.nfs:
+        (conf_path, export_dir) = make_export_and_conf()
+        proc = subprocess.Popen([ "sudo",
+                                 os.path.join(os.getcwd(),
+                                    "./external/fs/unfsd/unfsd"),
+                                 "-t",
+                                 "-d",
+                                 "-s",
+                                 "-l", "127.0.0.1",
+                                 "-e", conf_path ],
+                                 stdin = sys.stdin,
+                                 stdout = subprocess.PIPE,
+                                 stderr = sys.stderr,
+                                 shell = False)
+        atexit.register(kill_unfsd)
+        tests_to_run = [ SingleCommandTest('nfs-test',
+            "/tests-nfs/tst-nfs.so --server 192.168.122.1 --share %s" %
+            export_dir) ]
+
+        line = proc.stdout.readline()
+        while line:
+             print(line)
+             if ":" in line:
+                break
+             line = proc.stdout.readline()
+		
+        run(tests_to_run)
+    elif cmdargs.single:
         if tests_to_run != tests:
             print('Cannot restrict the set of tests when --single option is used')
             exit(1)
@@ -108,6 +157,7 @@ if __name__ == "__main__":
     parser.add_argument("-v", "--verbose", action="store_true", help="verbose test output")
     parser.add_argument("-r", "--repeat", action="store_true", help="repeat until test fails")
     parser.add_argument("-s", "--single", action="store_true", help="run as much tests as possible in a single OSv instance")
+    parser.add_argument("-n", "--nfs",    action="store_true", help="run nfs test in a single OSv instance")
     parser.add_argument("--name", action="store", help="run all tests whose names match given regular expression")
     cmdargs = parser.parse_args()
     set_verbose_output(cmdargs.verbose)
