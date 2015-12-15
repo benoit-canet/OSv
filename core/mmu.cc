@@ -1734,7 +1734,7 @@ error file_vma::sync(uintptr_t start, uintptr_t end)
         return make_error(ENOMEM);
 
     // Read only page ops
-    if (dynamic_cast<map_file_page_read *>(_page_ops)) {
+    if (_page_ops && dynamic_cast<map_file_page_read *>(_page_ops)) {
         start = std::max(start, _range.start());
         end = std::min(end, _range.end());
         uintptr_t size = end - start;
