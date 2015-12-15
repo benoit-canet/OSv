@@ -83,8 +83,6 @@ tests := tst-pthread.so tst-ramdisk.so tst-vblk.so tst-bsd-evh.so \
 	tst-namespace.so tst-without-namespace.so payload-env.so \
 	payload-merge-env.so
 
-tests-nfs := tst-nfs.so fsx-linux.so
-
 #	libstatic-thread-variable.so tst-static-thread-variable.so \
 
 tests += testrunner.so
@@ -144,10 +142,8 @@ $(solaris-tests:%=$(out)/tests/%): COMMON+= \
 
 all_tests := $(tests:%=tests/%)
 
-all_nfs_tests := $(tests-nfs:%=tests-nfs/%)
-
 # Automatically generate usr.manifest which includes all tests.
-usr.manifest: $(all_tests:%=$(out)/%) $(all_nfs_tests:%=$(out)/%) $(lastword $(MAKEFILE_LIST)) usr.manifest.skel
+usr.manifest: $(all_tests:%=$(out)/%) $(lastword $(MAKEFILE_LIST)) usr.manifest.skel
 	@echo "  generating modules/tests/usr.manifest"
 	@cat $@.skel > $@
 	@echo $(all_tests) | tr ' ' '\n' | awk '{print "/" $$0 ": ./" $$0}' >> $@
