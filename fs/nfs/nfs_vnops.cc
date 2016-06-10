@@ -115,28 +115,35 @@ int nfs_op_close(struct vnode *dvp, struct file *file)
 static int nfs_op_read(struct vnode *vp, struct file *fp, struct uio *uio,
                     int ioflag)
 {
+    vn_lock(vp);
     int err_no;
     auto nfs = get_nfs_context(vp, err_no);
     auto handle = get_handle(vp);
 
     if (err_no) {
+        vn_unlock(vp);
         return err_no;
     }
 
     if (vp->v_type == VDIR) {
+        vn_unlock(vp);
         return EISDIR;
     }
     if (vp->v_type != VREG) {
+        vn_unlock(vp);
         return EINVAL;
     }
     if (uio->uio_offset < 0) {
+        vn_unlock(vp);
         return EINVAL;
     }
     if (uio->uio_resid == 0) {
+        vn_unlock(vp);
         return 0;
     }
 
     if (uio->uio_offset >= (off_t)vp->v_size) {
+        vn_unlock(vp);
         return 0;
     }
 
@@ -151,32 +158,41 @@ static int nfs_op_read(struct vnode *vp, struct file *fp, struct uio *uio,
 
     int ret = nfs_pread(nfs, handle, uio->uio_offset, len, buf.get());
     if (ret < 0) {
+        vn_unlock(vp);
         return -ret;
     }
 
-    return uiomove(buf.get(), ret, uio);
+    int ret = uiomove(buf.get(), ret, uio);
+    vn_unlock(vp);
+    return ret;
 }
 
 static int nfs_op_write(struct vnode *vp, struct uio *uio, int ioflag)
 {
+    vn_lock(vp);
     int err_no;
     auto nfs = get_nfs_context(vp, err_no);
     auto handle = get_handle(vp);
 
     if (err_no) {
+        vn_unlock(vp);
         return err_no;
     }
 
     if (vp->v_type == VDIR) {
+        vn_unlock(vp);
         return EISDIR;
     }
     if (vp->v_type != VREG) {
+        vn_unlock(vp);
         return EINVAL;
     }
     if (uio->uio_offset < 0) {
+        vn_unlock(vp);
         return EINVAL;
     }
     if (uio->uio_resid == 0) {
+        vn_unlock(vp);
         return 0;
     }
 
@@ -194,6 +210,7 @@ static int nfs_op_write(struct vnode *vp, struct uio *uio, int ioflag)
     }
 
     if (ret) {
+        vn_unlock(vp);
         return -ret;
     }
 
@@ -211,6 +228,7 @@ static int nfs_op_write(struct vnode *vp, struct uio *uio, int ioflag)
     while (size > 0) {
         ret = nfs_pwrite(nfs, handle, offset, size, buffp);
         if (ret < 0) {
+            vn_unlock(vp);
             return -ret;
         }
 
@@ -221,6 +239,7 @@ static int nfs_op_write(struct vnode *vp, struct uio *uio, int ioflag)
 
     vp->v_size = new_size;
 
+    vn_unlock(vp);
     return 0;
 }
 

@@ -51,7 +51,9 @@ int vfs_file::read(struct uio *uio, int flags)
 	if ((flags & FOF_OFFSET) == 0)
 		uio->uio_offset = fp->f_offset;
 
+	vn_unlock(vp);
 	error = VOP_READ(vp, fp, uio, 0);
+	vn_lock(vp);
 	if (!error) {
 		count = bytes - uio->uio_resid;
 		if ((flags & FOF_OFFSET) == 0)
@@ -84,7 +86,9 @@ int vfs_file::write(struct uio *uio, int flags)
 	if ((flags & FOF_OFFSET) == 0)
 	        uio->uio_offset = fp->f_offset;
 
+	vn_unlock(vp);
 	error = VOP_WRITE(vp, uio, ioflags);
+	vn_lock(vp);
 	if (!error) {
 		count = bytes - uio->uio_resid;
 		if ((flags & FOF_OFFSET) == 0)

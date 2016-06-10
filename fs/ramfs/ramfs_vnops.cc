@@ -296,48 +296,62 @@ ramfs_create(struct vnode *dvp, char *name, mode_t mode)
 static int
 ramfs_read(struct vnode *vp, struct file *fp, struct uio *uio, int ioflag)
 {
+	vn_lock(vp);
 	struct ramfs_node *np = (ramfs_node*)vp->v_data;
 	size_t len;
 
     if (vp->v_type == VDIR) {
+        vn_unlock(vp);
         return EISDIR;
     }
     if (vp->v_type != VREG) {
+        vn_unlock(vp);
         return EINVAL;
     }
     if (uio->uio_offset < 0) {
+        vn_unlock(vp);
         return EINVAL;
     }
 	if (uio->uio_resid == 0) {
+		vn_unlock(vp);
 		return 0;
 	}
 
-	if (uio->uio_offset >= (off_t)vp->v_size)
+	if (uio->uio_offset >= (off_t)vp->v_size) {
+		vn_unlock(vp);
 		return 0;
+	}
 
 	if (vp->v_size - uio->uio_offset < uio->uio_resid)
 		len = vp->v_size - uio->uio_offset;
 	else
 		len = uio->uio_resid;
 
-	return uiomove(np->rn_buf + uio->uio_offset, len, uio);
+	int ret = uiomove(np->rn_buf + uio->uio_offset, len, uio);
+	vn_unlock(vp);
+	return ret;
 }
 
 static int
 ramfs_write(struct vnode *vp, struct uio *uio, int ioflag)
 {
+	vn_lock(vp);
 	struct ramfs_node *np = (ramfs_node*)vp->v_data;
 
     if (vp->v_type == VDIR) {
+        vn_unlock(vp);
         return EISDIR;
     }
     if (vp->v_type != VREG) {
+        vn_unlock(vp);
         return EINVAL;
     }
     if (uio->uio_offset < 0) {
+        vn_unlock(vp);
         return EINVAL;
     }
 	if (uio->uio_resid == 0) {
+		vn_unlock(vp);
 		return 0;
 	}
 
@@ -351,8 +365,11 @@ ramfs_write(struct vnode *vp, struct uio *uio, int ioflag)
 			// XXX: this could use a page level allocator
 			size_t new_size = round_page(end_pos);
 			void *new_buf = malloc(new_size);
-			if (!new_buf)
+			if (!new_buf) {
+				vn_unlock(vp);
 				return EIO;
+
+			}
 			if (np->rn_size != 0) {
 				memcpy(new_buf, np->rn_buf, vp->v_size);
 				free(np->rn_buf);
@@ -363,7 +380,9 @@ ramfs_write(struct vnode *vp, struct uio *uio, int ioflag)
 		np->rn_size = end_pos;
 		vp->v_size = end_pos;
 	}
-	return uiomove(np->rn_buf + uio->uio_offset, uio->uio_resid, uio);
+	int ret = uiomove(np->rn_buf + uio->uio_offset, uio->uio_resid, uio);
+	vn_unlock(vp);
+	return ret;
 }
 
 static int

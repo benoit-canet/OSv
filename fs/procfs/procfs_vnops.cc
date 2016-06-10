@@ -148,6 +148,7 @@ procfs_close(vnode* vp, file* fp)
 static int
 procfs_read(vnode* vp, file *fp, uio* uio, int ioflags)
 {
+    vn_lock(vp);
     auto* data = static_cast<string*>(fp->f_data);
 
     if (vp->v_type == VDIR)
@@ -166,7 +167,9 @@ procfs_read(vnode* vp, file *fp, uio* uio, int ioflags)
     else
         len = uio->uio_resid;
 
-    return uiomove(const_cast<char*>(data->data()) + uio->uio_offset, len, uio);
+    int ret = uiomove(const_cast<char*>(data->data()) + uio->uio_offset, len, uio);
+    vn_unlock(vp);
+    return ret;
 }
 
 static int

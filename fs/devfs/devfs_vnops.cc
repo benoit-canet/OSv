@@ -104,13 +104,19 @@ devfs_close(struct vnode *vp, struct file *fp)
 static int
 devfs_read(struct vnode *vp, struct file *fp, struct uio *uio, int ioflags)
 {
-	return device_read((device*)vp->v_data, uio, ioflags);
+	vn_lock(vp);
+	int ret = device_read((device*)vp->v_data, uio, ioflags);
+	vn_unlock(vp);
+	return ret;
 }
 
 static int
 devfs_write(struct vnode *vp, struct uio *uio, int ioflags)
 {
-	return device_write((device*)vp->v_data, uio, ioflags);
+	vn_lock(vp);
+	int ret = device_write((device*)vp->v_data, uio, ioflags);
+	vn_unlock(vp);
+	return ret;
 }
 
 static int

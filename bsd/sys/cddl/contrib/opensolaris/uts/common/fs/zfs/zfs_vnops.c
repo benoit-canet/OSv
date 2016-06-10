@@ -560,6 +560,7 @@ offset_t zfs_read_chunk_size = 1024 * 1024; /* Tunable */
 static int
 zfs_read(vnode_t *vp, struct file* fp, uio_t *uio, int ioflag)
 {
+	vn_lock(vp);
 	znode_t		*zp = VTOZ(vp);
 	zfsvfs_t	*zfsvfs = zp->z_zfsvfs;
 	objset_t	*os;
@@ -572,8 +573,10 @@ zfs_read(vnode_t *vp, struct file* fp, uio_t *uio, int ioflag)
 
 	// Return EISDIR when reading from a directory, as Linux does.
 	if (vp->v_type == VDIR) {
+	    vn_unlock(vp);
 	    return EISDIR;
 	}
+	vn_unlock(vp);
 
 	ZFS_ENTER(zfsvfs);
 	ZFS_VERIFY_ZP(zp);
@@ -785,7 +788,9 @@ zfs_arc(vnode_t *vp, struct file* fp, uio_t *uio)
 static int
 zfs_write(vnode_t *vp, uio_t *uio, int ioflag)
 {
+	vn_lock(vp);
 	znode_t		*zp = VTOZ(vp);
+	vn_unlock(vp);
 	rlim64_t        limit = MAXOFFSET_T;
 	ssize_t		start_resid = uio->uio_resid;
 	ssize_t		tx_bytes;
@@ -973,8 +978,11 @@ again:
 		 */
 		nbytes = MIN(n, max_blksz - P2PHASE(woff, max_blksz));
 
-		if (woff + nbytes > zp->z_size)
+		if (woff + nbytes > zp->z_size) {
+			vn_lock(vp);
 			vnode_pager_setsize(vp, woff + nbytes);
+			vn_unlock(vp);
+		}
 
 		if (abuf == NULL) {
 			tx_bytes = uio->uio_resid;
