@@ -197,6 +197,7 @@ private:
     void start_and_join(waiter* setup_waiter);
     void main();
     void run_main(std::string path, int argc, char** argv);
+    void prepare_argc_argv();
     void run_main();
     friend void ::__libc_start_main(int(*)(int, char**), int, char**, void(*)(),
         void(*)(), void(*)(), void*);
@@ -216,6 +217,13 @@ private:
     main_func_t* _main;
     void (*_entry_point)();
     static app_registry apps;
+
+    // argc and argv variables
+    std::vector<std::vector<char>> _mut_args;
+    std::unique_ptr<char *> _contig_argv;
+    std::unique_ptr<char []> _argv_buf;
+    std::vector<char*> _argv;
+    int _argc;
 
     // Must be destroyed before _lib, because contained function objects may
     // have destructors which are part of the application's code.
