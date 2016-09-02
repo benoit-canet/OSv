@@ -11,6 +11,7 @@
 #include "fs/fs.hh"
 #include <vector>
 #include <map>
+#include <stack>
 #include <memory>
 #include <unordered_set>
 #include <osv/types.h>
@@ -525,7 +526,9 @@ public:
      *                        set_search_path().
      */
     std::shared_ptr<elf::object>
-    get_library(std::string lib, std::vector<std::string> extra_path = {});
+    get_library(std::string lib, std::vector<std::string> extra_path = {}, bool no_init = false);
+
+    void init_library();
 
     /**
      * Set the default search path for get_library().
@@ -596,6 +599,7 @@ private:
 
     friend elf::file::~file();
     friend class object;
+    std::stack<std::vector<std::shared_ptr<object>>> _loaded_objects_stack;
 };
 
 void create_main_program();

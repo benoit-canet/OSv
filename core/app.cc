@@ -174,7 +174,7 @@ application::application(const std::string& command,
 
         merge_in_environ(new_program, env);
 	prepare_argv();
-        _lib = current_program->get_library(_command);
+        _lib = current_program->get_library(_command, {}, true);
     } catch(const std::exception &e) {
         throw launch_error(e.what());
     }
@@ -278,6 +278,7 @@ void application::main()
 {
     __libc_stack_end = __builtin_frame_address(0);
 
+    elf::get_program()->init_library();
     sched::thread::current()->set_name(_command);
 
     if (_main) {
