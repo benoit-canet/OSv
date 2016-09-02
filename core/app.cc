@@ -294,20 +294,31 @@ void application::main()
     // _entry_point() doesn't return
 }
 
-void application::run_main(std::string path, int argc, char** argv)
+void application::prepare_argc_argv()
 {
-    char *c_path = (char *)(path.c_str());
+    // C main wants mutable arguments, so we have can't use strings directly
+    transform(_args, back_inserter(_mut_args),
+            [](std::string s) { return std::vector<char>(s.data(), s.data() + s.size() + 1); });
+    std::vector<char*> argv;
+    transform(_mut_args.begin(), _mut_args.end(), back_inserter(argv),
+            [](std::vector<char>& s) { return s.data(); });
+    _argc = argv.size();
+    argv.push_back(nullptr);
+
+    char **argv_data = argv.data();
+
+    char *c_path = (char *)(_command.c_str());
     // path is guaranteed to keep existing this function
     program_invocation_name = c_path;
     program_invocation_short_name = basename(c_path);
 
-    auto sz = argc; // for the trailing 0's.
-    for (int i = 0; i < argc; ++i) {
-        sz += strlen(argv[i]);
+    auto sz = _argc; // for the trailing 0's.
+    for (int i = 0; i < _argc; ++i) {
+        sz += strlen(argv_data[i]);
     }
 
-    std::unique_ptr<char []> argv_buf(new char[sz]);
-    char *ab = argv_buf.get();
+    _argv_buf.reset(new char[sz]);
+    char *ab = _argv_buf.get();
     // In Linux, the pointer arrays argv[] and envp[] are continguous.
     // Unfortunately, some programs rely on this fact (e.g., libgo's
     // runtime_goenvs_unix()) so it is useful that we do this too.
@@ -315,44 +326,36 @@ void application::run_main(std::string path, int argc, char** argv)
     while (environ[envcount]) {
         envcount++;
     }
-    char *contig_argv[argc + 1 + envcount + 1];
+    _contig_argv.reset(new char*[_argc + 1 + envcount + 1]);
+    char **contig_argv = _contig_argv.get();
 
-    for (int i = 0; i < argc; ++i) {
-        size_t asize = strlen(argv[i]);
-        memcpy(ab, argv[i], asize);
+    for (int i = 0; i < _argc; ++i) {
+        size_t asize = strlen(argv_data[i]);
+        memcpy(ab, argv_data[i], asize);
         ab[asize] = '\0';
         contig_argv[i] = ab;
         ab += asize + 1;
     }
-    contig_argv[argc] = nullptr;
+    contig_argv[_argc] = nullptr;
 
     for (int i = 0; i < envcount; i++) {
-        contig_argv[argc + 1 + i] = environ[i];
+        contig_argv[_argc + 1 + i] = environ[i];
     }
-    contig_argv[argc + 1 + envcount] = nullptr;
-
-    // make sure to have a fresh optind across calls
-    // FIXME: fails if run() is executed in parallel
-    int old_optind = optind;
-    optind = 0;
-    _return_code = _main(argc, contig_argv);
-    optind = old_optind;
+    contig_argv[_argc + 1 + envcount] = nullptr;
 }
 
 void application::run_main()
 {
     trace_app_main(this, _command.c_str());
 
-    // C main wants mutable arguments, so we have can't use strings directly
-    std::vector<std::vector<char>> mut_args;
-    transform(_args, back_inserter(mut_args),
-            [](std::string s) { return std::vector<char>(s.data(), s.data() + s.size() + 1); });
-    std::vector<char*> argv;
-    transform(mut_args.begin(), mut_args.end(), back_inserter(argv),
-            [](std::vector<char>& s) { return s.data(); });
-    auto argc = argv.size();
-    argv.push_back(nullptr);
-    run_main(_command, argc, argv.data());
+    prepare_argc_argv();
+
+    // make sure to have a fresh optind across calls
+    // FIXME: fails if run() is executed in parallel
+    int old_optind = optind;
+    optind = 0;
+    _return_code = _main(_argc, _contig_argv.get());
+    optind = old_optind;
 
     if (_return_code) {
         debug("program %s returned %d\n", _command.c_str(), _return_code);
