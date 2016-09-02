@@ -173,7 +173,7 @@ application::application(const std::string& command,
         }
 
         merge_in_environ(new_program, env);
-	prepare_argv();
+	prepare_argv(current_program);
         _lib = current_program->get_library(_command, {}, true);
     } catch(const std::exception &e) {
         throw launch_error(e.what());
@@ -296,7 +296,7 @@ void application::main()
     // _entry_point() doesn't return
 }
 
-void application::prepare_argv()
+void application::prepare_argv(elf::program *program)
 {
     // Prepare program_* variable used by the libc
     char *c_path = (char *)(_command.c_str());
@@ -323,7 +323,7 @@ void application::prepare_argv()
     }
 
     // Allocate the continuous buffer for argv[] and envp[]
-    _argv.reset(new char*[_args.size() + 1 + envcount + 1]);
+    _argv.reset(new char*[_args.size() + 1 + envcount + 1 + sizeof(Elf64_auxv_t) * 2]);
 
     // Fill the argv part of these buffers
     char *ab = _argv_buf.get();
@@ -342,6 +342,21 @@ void application::prepare_argv()
         contig_argv[_args.size() + 1 + i] = environ[i];
     }
     contig_argv[_args.size() + 1 + envcount] = nullptr;
+
+    _libvdso = program->get_library("libvdso.so");
+    if (!_libvdso) {
+        abort("could not load libvdso.so\n");
+        return;
+    }
+
+    // Pass the VDSO library to the application.
+    Elf64_auxv_t* _auxv =
+        reinterpret_cast<Elf64_auxv_t *>(&contig_argv[_args.size() + 1 + envcount + 1]);
+    _auxv[0].a_type = AT_SYSINFO_EHDR;
+    _auxv[0].a_un.a_val = reinterpret_cast<uint64_t>(_libvdso->base());
+
+    _auxv[1].a_type = AT_NULL;
+    _auxv[1].a_un.a_val = 0;
 }
 
 void application::run_main()
