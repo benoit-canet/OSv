@@ -181,6 +181,9 @@ application::application(const std::string& command,
 
     _main = _lib->lookup<int (int, char**)>("main");
     if (!_main) {
+        _entry_point = _lib->lookup<void ()>("GoMain");
+    }
+    if (!_main && !_entry_point) {
         _entry_point = reinterpret_cast<void(*)()>(_lib->entry_point());
     }
     if (!_entry_point && !_main) {
