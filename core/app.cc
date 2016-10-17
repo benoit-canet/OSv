@@ -173,6 +173,7 @@ application::application(const std::string& command,
         }
 
         merge_in_environ(new_program, env);
+	prepare_argv();
         _lib = current_program->get_library(_command);
     } catch(const std::exception &e) {
         throw launch_error(e.what());
@@ -345,8 +346,6 @@ void application::prepare_argv()
 void application::run_main()
 {
     trace_app_main(this, _command.c_str());
-
-    prepare_argv();
 
     // make sure to have a fresh optind across calls
     // FIXME: fails if run() is executed in parallel
