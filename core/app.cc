@@ -294,67 +294,65 @@ void application::main()
     // _entry_point() doesn't return
 }
 
-void application::prepare_argc_argv()
+void application::prepare_argv()
 {
-    // C main wants mutable arguments, so we have can't use strings directly
-    transform(_args, back_inserter(_mut_args),
-            [](std::string s) { return std::vector<char>(s.data(), s.data() + s.size() + 1); });
-    std::vector<char*> argv;
-    transform(_mut_args.begin(), _mut_args.end(), back_inserter(argv),
-            [](std::vector<char>& s) { return s.data(); });
-    _argc = argv.size();
-    argv.push_back(nullptr);
-
-    char **argv_data = argv.data();
-
+    // Prepare program_* variable used by the libc
     char *c_path = (char *)(_command.c_str());
-    // path is guaranteed to keep existing this function
     program_invocation_name = c_path;
     program_invocation_short_name = basename(c_path);
 
-    auto sz = _argc; // for the trailing 0's.
-    for (int i = 0; i < _argc; ++i) {
-        sz += strlen(argv_data[i]);
+    // Allocate a continuous buffer for arguments: _argv_buf
+    // First count the trailing zeroes
+    auto sz = _args.size();
+    // Then add the sum of each argument size to sz
+    for (auto &str: _args) {
+        sz += str.size();
     }
-
     _argv_buf.reset(new char[sz]);
-    char *ab = _argv_buf.get();
+
     // In Linux, the pointer arrays argv[] and envp[] are continguous.
     // Unfortunately, some programs rely on this fact (e.g., libgo's
     // runtime_goenvs_unix()) so it is useful that we do this too.
+
+    // First count the number of environment variables
     int envcount = 0;
     while (environ[envcount]) {
         envcount++;
     }
-    _contig_argv.reset(new char*[_argc + 1 + envcount + 1]);
-    char **contig_argv = _contig_argv.get();
 
-    for (int i = 0; i < _argc; ++i) {
-        size_t asize = strlen(argv_data[i]);
-        memcpy(ab, argv_data[i], asize);
-        ab[asize] = '\0';
+    // Allocate the continuous buffer for argv[] and envp[]
+    _argv.reset(new char*[_args.size() + 1 + envcount + 1]);
+
+    // Fill the argv part of these buffers
+    char *ab = _argv_buf.get();
+    char **contig_argv = _argv.get();
+    for (size_t i = 0; i < _args.size(); i++) {
+	auto &str = _args[i];
+        memcpy(ab, str.c_str(), str.size());
+        ab[str.size()] = '\0';
         contig_argv[i] = ab;
-        ab += asize + 1;
+        ab += str.size() + 1;
     }
-    contig_argv[_argc] = nullptr;
+    contig_argv[_args.size()] = nullptr;
 
+    // Do the same for environ
     for (int i = 0; i < envcount; i++) {
-        contig_argv[_argc + 1 + i] = environ[i];
+        contig_argv[_args.size() + 1 + i] = environ[i];
     }
-    contig_argv[_argc + 1 + envcount] = nullptr;
+    contig_argv[_args.size() + 1 + envcount] = nullptr;
 }
 
 void application::run_main()
 {
     trace_app_main(this, _command.c_str());
 
-    prepare_argc_argv();
+    prepare_argv();
 
     // make sure to have a fresh optind across calls
     // FIXME: fails if run() is executed in parallel
     int old_optind = optind;
     optind = 0;
-    _return_code = _main(_argc, _contig_argv.get());
+    _return_code = _main(_args.size(), _argv.get());
     optind = old_optind;
 
     if (_return_code) {
