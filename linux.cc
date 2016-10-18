@@ -28,6 +28,8 @@
 #include <signal.h>
 #include <sys/select.h>
 #include <sys/mman.h>
+#include <sys/types.h>
+#include <sys/socket.h>
 
 #include <unordered_map>
 
@@ -343,6 +345,7 @@ long syscall(long number, ...)
     SYSCALL3(madvise, void *, size_t, int);
     SYSCALL0(sched_yield);
     SYSCALL3(mincore, void *, size_t, unsigned char *);
+    SYSCALL3(socket, int, int, int);
     }
 
     debug_always("syscall(): unimplemented system call %d\n", number);
