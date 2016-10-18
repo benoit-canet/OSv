@@ -346,6 +346,8 @@ long syscall(long number, ...)
     SYSCALL0(sched_yield);
     SYSCALL3(mincore, void *, size_t, unsigned char *);
     SYSCALL3(socket, int, int, int);
+    SYSCALL5(setsockopt, int, int, int, char *, int);
+    SYSCALL5(getsockopt, int, int, int, char *, unsigned int *);
     }
 
     debug_always("syscall(): unimplemented system call %d\n", number);
