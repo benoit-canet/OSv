@@ -30,6 +30,8 @@
 #include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 
 #include <unordered_map>
 
@@ -345,6 +347,7 @@ long syscall(long number, ...)
     SYSCALL3(madvise, void *, size_t, int);
     SYSCALL0(sched_yield);
     SYSCALL3(mincore, void *, size_t, unsigned char *);
+    SYSCALL4(openat, int, const char *, int, mode_t);
     SYSCALL3(socket, int, int, int);
     SYSCALL5(setsockopt, int, int, int, char *, int);
     SYSCALL3(bind, int, struct sockaddr *, int);
