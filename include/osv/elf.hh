@@ -335,7 +335,7 @@ public:
     const std::vector<Elf64_Phdr> *phdrs();
     std::string soname();
     std::string pathname();
-    void run_init_funcs();
+    void run_init_funcs(int argc, char** argv);
     void run_fini_funcs();
     template <typename T = void>
     T* lookup(const char* name);
@@ -528,7 +528,7 @@ public:
     std::shared_ptr<elf::object>
     get_library(std::string lib, std::vector<std::string> extra_path = {}, bool no_init = false);
 
-    void init_library();
+    void init_library(int argc = 0, char **argv = nullptr);
 
     /**
      * Set the default search path for get_library().
