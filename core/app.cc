@@ -274,7 +274,7 @@ void application::main()
 {
     __libc_stack_end = __builtin_frame_address(0);
 
-    elf::get_program()->init_library();
+    elf::get_program()->init_library(_args.size(), _argv.get());
     sched::thread::current()->set_name(_command);
 
     if (_main) {

@@ -932,19 +932,19 @@ std::string object::pathname()
 }
 
 // Run the object's static constructors or similar initialization
-void object::run_init_funcs()
+void object::run_init_funcs(int argc, char** argv)
 {
     if (dynamic_exists(DT_INIT)) {
         auto func = dynamic_ptr<void>(DT_INIT);
         if (func) {
-            reinterpret_cast<void(*)()>(func)();
+            reinterpret_cast<void(*)(int, char**)>(func)(argc, argv);
         }
     }
     if (dynamic_exists(DT_INIT_ARRAY)) {
-        auto funcs = dynamic_ptr<void (*)()>(DT_INIT_ARRAY);
+        auto funcs = dynamic_ptr<void(*)(int, char**)>(DT_INIT_ARRAY);
         auto nr = dynamic_val(DT_INIT_ARRAYSZ) / sizeof(*funcs);
         for (auto i = 0u; i < nr; ++i) {
-            funcs[i]();
+            funcs[i](argc, argv);
         }
     }
 }
@@ -1194,7 +1194,7 @@ program::get_library(std::string name, std::vector<std::string> extra_path, bool
     return ret;
 }
 
-void program::init_library()
+void program::init_library(int argc, char** argv)
 {
     // get the list of weak pointers before iterating on them
     std::vector<std::shared_ptr<object>> loaded_objects =
@@ -1208,7 +1208,7 @@ void program::init_library()
         loaded_objects[i]->setprivate(true);
     }
     for (int i = size - 1; i >= 0; i--) {
-        loaded_objects[i]->run_init_funcs();
+        loaded_objects[i]->run_init_funcs(argc, argv);
     }
     for (unsigned i = 0; i < size; i++) {
         loaded_objects[i]->setprivate(false);
