@@ -32,6 +32,7 @@
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/ioctl.h>
 
 #include <unordered_map>
 
@@ -312,6 +313,13 @@ static int sys_exit(int ret)
     exit(ret);
     return 0;
 }
+    
+#define __NR_sys_ioctl __NR_ioctl
+
+static int sys_ioctl(unsigned int fd, unsigned int command, unsigned long arg)
+{
+    return ioctl(fd, command, arg);
+}
 
 long syscall(long number, ...)
 {
@@ -352,6 +360,7 @@ long syscall(long number, ...)
     SYSCALL5(setsockopt, int, int, int, char *, int);
     SYSCALL3(bind, int, struct sockaddr *, int);
     SYSCALL2(listen, int, int);
+    SYSCALL3(sys_ioctl, unsigned int, unsigned int, unsigned long);
     }
 
     debug_always("syscall(): unimplemented system call %d\n", number);
