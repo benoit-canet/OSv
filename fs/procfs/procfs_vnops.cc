@@ -5,6 +5,8 @@
  * BSD license as described in the LICENSE file in the top-level directory.
  */
 
+#include <unistd.h>
+
 #include <osv/dentry.h>
 #include <osv/vnode.h>
 #include <osv/mount.h>
@@ -350,6 +352,20 @@ static std::string procfs_mounts()
 	return rstr;
 }
 
+static std::string procfs_hostname()
+{
+	char hostname[4096];
+	memset(hostname, 0, 4096);
+
+	// leave a trailing zero whatever happen
+        int ret = gethostname(hostname, 4095);
+        if (ret < 0) {
+		return std::string("");
+        }
+
+	return std::string(hostname);
+}
+
 static int
 procfs_mount(mount* mp, const char *dev, int flags, const void* data)
 {
@@ -363,6 +379,14 @@ procfs_mount(mount* mp, const char *dev, int flags, const void* data)
     root->add("self", self);
     root->add("0", self); // our standard pid
     root->add("mounts", inode_count++, procfs_mounts);
+
+    // /proc/sys/kernel/hostname
+    auto sys = make_shared<proc_dir_node>(inode_count++);
+    root->add("sys", sys);
+    auto kernel = make_shared<proc_dir_node>(inode_count++);
+    sys->add("kernel", kernel);
+    kernel->add("hostname", inode_count++, procfs_hostname);
+
     root->add("cpuinfo", inode_count++, [] { return processor::features_str(); });
 
     vp->v_data = static_cast<void*>(root);
