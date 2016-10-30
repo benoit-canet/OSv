@@ -364,6 +364,7 @@ long syscall(long number, ...)
     SYSCALL3(sys_ioctl, unsigned int, unsigned int, unsigned long);
     SYSCALL3(getrandom, char *, size_t, unsigned int);
     SYSCALL2(stat, const char *, struct stat *);
+    SYSCALL3(getsockname, int, struct sockaddr *, socklen_t *);
     }
 
     debug_always("syscall(): unimplemented system call %d\n", number);
