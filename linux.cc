@@ -348,6 +348,7 @@ long syscall(long number, ...)
     SYSCALL3(socket, int, int, int);
     SYSCALL5(setsockopt, int, int, int, char *, int);
     SYSCALL3(bind, int, struct sockaddr *, int);
+    SYSCALL2(listen, int, int);
     }
 
     debug_always("syscall(): unimplemented system call %d\n", number);
