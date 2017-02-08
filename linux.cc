@@ -368,6 +368,10 @@ long syscall(long number, ...)
     SYSCALL3(getrandom, char *, size_t, unsigned int);
     SYSCALL2(stat, const char *, struct stat *);
     SYSCALL3(getsockname, int, struct sockaddr *, socklen_t *);
+    SYSCALL6(sendto, int, const void *, size_t, int, const struct sockaddr *, socklen_t);
+    SYSCALL3(sendmsg, int, const struct msghdr *, int);
+    SYSCALL6(recvfrom, int, void *, size_t, int, struct sockaddr *, socklen_t *);
+    SYSCALL3(recvmsg, int, struct msghdr *, int);
     }
 
     debug_always("syscall(): unimplemented system call %d\n", number);
@@ -375,6 +379,7 @@ long syscall(long number, ...)
     return -1;
 }
 long __syscall(long number, ...)  __attribute__((alias("syscall")));
+
 
 extern "C" long syscall_wrapper(long number, ...)
 {
