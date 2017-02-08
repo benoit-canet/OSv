@@ -344,6 +344,7 @@ long syscall(long number, ...)
     SYSCALL4(epoll_ctl, int, int, int, struct epoll_event *);
     SYSCALL4(epoll_wait, int, struct epoll_event *, int, int);
     SYSCALL4(accept4, int, struct sockaddr *, socklen_t *, int);
+    SYSCALL3(connect, int, struct sockaddr *, socklen_t);
     SYSCALL5(get_mempolicy, int *, unsigned long *, unsigned long, void *, int);
     SYSCALL3(sched_getaffinity_syscall, pid_t, unsigned, unsigned long *);
     SYSCALL6(long_mmap, void *, size_t, int, int, int, off_t);
