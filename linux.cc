@@ -361,6 +361,7 @@ long syscall(long number, ...)
     SYSCALL3(socket, int, int, int);
     SYSCALL5(setsockopt, int, int, int, char *, int);
     SYSCALL5(getsockopt, int, int, int, char *, unsigned int *);
+    SYSCALL3(getpeername, int, struct sockaddr *, unsigned int *);
     SYSCALL3(bind, int, struct sockaddr *, int);
     SYSCALL2(listen, int, int);
     SYSCALL3(sys_ioctl, unsigned int, unsigned int, unsigned long);
