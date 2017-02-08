@@ -360,6 +360,7 @@ long syscall(long number, ...)
     SYSCALL4(openat, int, const char *, int, mode_t);
     SYSCALL3(socket, int, int, int);
     SYSCALL5(setsockopt, int, int, int, char *, int);
+    SYSCALL5(getsockopt, int, int, int, char *, unsigned int *);
     SYSCALL3(bind, int, struct sockaddr *, int);
     SYSCALL2(listen, int, int);
     SYSCALL3(sys_ioctl, unsigned int, unsigned int, unsigned long);
