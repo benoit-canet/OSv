@@ -100,6 +100,7 @@ def start_osv_qemu(options):
         args += [
         "--nographic"]
 
+    args += [ "-cpu",  "host" ]
     if not options.nogdb:
         args += [
         "-gdb", "tcp::%s,server,nowait" % options.gdb]

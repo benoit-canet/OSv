@@ -1849,6 +1849,7 @@ void free_initial_memory_range(uintptr_t addr, size_t size)
 
 error mprotect(const void *addr, size_t len, unsigned perm)
 {
+    perm |= mmu::perm_rwx;
     SCOPE_LOCK(vma_list_mutex.for_write());
 
     if (!ismapped(addr, len)) {
