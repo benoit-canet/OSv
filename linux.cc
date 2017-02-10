@@ -13,6 +13,7 @@
 #include <osv/mutex.h>
 #include <osv/waitqueue.hh>
 #include <osv/stubbing.hh>
+#include <memory>
 
 #include <syscall.h>
 #include <stdarg.h>
@@ -52,7 +53,7 @@ extern "C" long gettid()
 // The __cxa_guard_* functions only call futex in the rare case of contention,
 // in fact so rarely that OSv existed for a year before anyone noticed futex
 // was missing. So the performance of this implementation is not critical.
-static std::unordered_map<void*, waitqueue> queues;
+static std::unordered_map<void*, std::shared_ptr<waitqueue>> queues;
 static mutex queues_mutex;
 enum {
     FUTEX_WAIT           = 0,
@@ -69,12 +70,16 @@ int futex(int *uaddr, int op, int val, const struct timespec *timeout,
     case FUTEX_WAIT:
         WITH_LOCK(queues_mutex) {
             if (*uaddr == val) {
-                waitqueue &q = queues[uaddr];
+                auto i = queues.find(uaddr);
+                if (i == queues.end()) {
+                    queues[uaddr] = std::make_shared<waitqueue>();
+                }
+                std::shared_ptr<waitqueue> q = queues[uaddr];
                 if (timeout) {
                     sched::timer tmr(*sched::thread::current());
                     tmr.set(std::chrono::seconds(timeout->tv_sec) +
                             std::chrono::nanoseconds(timeout->tv_nsec));
-                    sched::thread::wait_for(queues_mutex, tmr, q);
+                    sched::thread::wait_for(queues_mutex, tmr, *q);
                     // FIXME: testing if tmr was expired isn't quite right -
                     // we could have had both a wakeup and timer expiration
                     // racing. It would be more correct to check if we were
@@ -84,7 +89,7 @@ int futex(int *uaddr, int op, int val, const struct timespec *timeout,
                         return -1;
                     }
                 } else {
-                    q.wait(queues_mutex);
+                    q->wait(queues_mutex);
                 }
                 return 0;
             } else {
@@ -102,11 +107,11 @@ int futex(int *uaddr, int op, int val, const struct timespec *timeout,
             auto i = queues.find(uaddr);
             if (i != queues.end()) {
                 int waken = 0;
-                while( (val > waken) && !(i->second.empty()) ) {
-                    i->second.wake_one(queues_mutex);
+                while( (val > waken) && !(i->second->empty()) ) {
+                    i->second->wake_one(queues_mutex);
                     waken++;
                 }
-                if(i->second.empty()) {
+                if(i->second->empty()) {
                     queues.erase(i);
                 }
                 return waken;
